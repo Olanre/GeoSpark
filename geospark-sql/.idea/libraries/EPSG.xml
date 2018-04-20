@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="EPSG">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/scala/target/streams/$global/assemblyOption/$global/streams/assembly/5e81e6df6c3ea62ff6c53ae25e1d19a7c0b71c2a_4f283bff344db1b60873b642ca0aef6ae0589a88_da39a3ee5e6b4b0d3255bfef95601890afd80709/org/geotools/referencing/factory/epsg/EPSG.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

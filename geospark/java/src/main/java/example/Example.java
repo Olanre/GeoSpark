@@ -99,6 +99,7 @@ public class Example implements Serializable{
 		conf.set("spark.serializer", KryoSerializer.class.getName());
 		conf.set("spark.kryo.registrator", GeoSparkVizKryoRegistrator.class.getName());
 		sc = new JavaSparkContext(conf);
+		var test;
 		Logger.getLogger("org").setLevel(Level.WARN);
 		Logger.getLogger("akka").setLevel(Level.WARN);
 
