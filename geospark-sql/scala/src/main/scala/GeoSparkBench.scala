@@ -21,6 +21,8 @@ object GeoSparkBench extends App{
     
     var sparkSession:SparkSession = SparkSession.builder().config("spark.serializer",classOf[KryoSerializer].getName).
         config("spark.kryo.registrator", classOf[GeoSparkVizKryoRegistrator].getName).
+        config("geospark.global.index","true").
+        config("spark.sql.crossJoin.enabled", "true").
         appName("GeoSparkSQL-demo").getOrCreate()
     Logger.getLogger("org").setLevel(Level.WARN)
     Logger.getLogger("akka").setLevel(Level.WARN)
@@ -33,8 +35,7 @@ object GeoSparkBench extends App{
     val arealm = resourceFolder + "arealm_merge.shp"
       val pointlm= resourceFolder + "pointlm_merge.shp"
       val edges = resourceFolder + "edges_merge.shp"
-      val areawater = resourceFolder + "areawater_merge.shp"
-    
+
     //loading arealm
     var spatialRDD = new SpatialRDD[Geometry]
     spatialRDD.rawSpatialRDD = ShapefileReader.readToGeometryRDD(sparkSession.sparkContext, arealm)
@@ -43,7 +44,6 @@ object GeoSparkBench extends App{
         var arealm_merge = sparkSession.sql("""
                                        | SELECT ST_GeomFromWKT(rddshape) as shape
                                        | FROM rawSpatialDf
-                                       | LIMIT 2000
                                      """.stripMargin)
         arealm_merge.createOrReplaceTempView("arealm_merge")
         arealm_merge.show()
@@ -76,39 +76,13 @@ object GeoSparkBench extends App{
         edges_merge.createOrReplaceTempView("edges_merge")
         edges_merge.show()
         edges_merge.printSchema()
-        
-    //loading areawater
-    var spatialRDD3 = new SpatialRDD[Geometry]
-    spatialRDD3.rawSpatialRDD = ShapefileReader.readToGeometryRDD(sparkSession.sparkContext, areawater)
-        var rawSpatialDf3 = Adapter.toDf(spatialRDD3,sparkSession)
-        rawSpatialDf3.createOrReplaceTempView("rawSpatialDf3")
-        var areawater_merge = sparkSession.sql("""
-                                       | SELECT ST_GeomFromWKT(rddshape) as shape
-                                       | FROM rawSpatialDf3
-                                       | LIMIT 2000
-                                     """.stripMargin)
-        areawater_merge.createOrReplaceTempView("areawater_merge")
-        areawater_merge.show()
-        areawater_merge.printSchema()
+
 
     var beginTime = System.currentTimeMillis()
     var runtime = System.currentTimeMillis() - beginTime
-    /////////////////////////////////////// SELECT POINT //////////////////////////////////////////////
-  /**
-    beginTime = System.currentTimeMillis()
-    getSelectAllFeaturesWithinADistanceFromPoint()
-    runtime = System.currentTimeMillis() - beginTime
-    println("Select All Features Within A Distance From a Point took : " + runtime +" (ms)")
-    */
 
     ///////////////////////////////////////POLYGON AND POLYGON//////////////////////////////////////////////
 
-  /**
-    beginTime = System.currentTimeMillis()
-    getSelectLongestLineIntersectsArea()
-    runtime = System.currentTimeMillis() - beginTime
-    println("Select Longest Line Intersects Area took : " + runtime +" (ms)")
-  */
 
 
     beginTime = System.currentTimeMillis()
@@ -126,12 +100,6 @@ object GeoSparkBench extends App{
     getSelectAreaWithinArea()
     runtime = System.currentTimeMillis() - beginTime
     println("Select Area Within Area took : " + runtime +" (ms)")
-
-
-    beginTime = System.currentTimeMillis()
-    getSelectAreaEqualsArea()
-    runtime = System.currentTimeMillis() - beginTime
-    println("Select Area Equals Area took : " + runtime +" (ms)")
 
     beginTime = System.currentTimeMillis()
     getSelectAreaDisjointArea()
@@ -160,9 +128,9 @@ object GeoSparkBench extends App{
     ///////////////////////////////////////LINE AND LINE//////////////////////////////////////////////
 
     beginTime = System.currentTimeMillis()
-    getSelectLineOverlapsLine()
+    getSelectLineIntersectsLine()
     runtime = System.currentTimeMillis() - beginTime
-    println("Select Line Overlaps Line took : " + runtime +" (ms)")
+    println("Select Line Intersects Line took : " + runtime +" (ms)")
 
     ///////////////////////////////////////POINT AND POINT //////////////////////////////////////////////
     beginTime = System.currentTimeMillis()
@@ -195,33 +163,10 @@ object GeoSparkBench extends App{
         *
         * @throws Exception the exception
         */
-    def getSelectAllFeaturesWithinADistanceFromPoint() {
-        var spatialDf = sparkSession.sql(
-           """
-             |SELECT count(*) 
-             |FROM arealm_merge a
-		         |WHERE ST_Distance(a.shape, ST_PointFromText('POINT(-97.7 30.30)',0) )  < 1000
-           """.stripMargin)
-         spatialDf.createOrReplaceTempView("spatialdf")
-         spatialDf.show()
-
-    }
 
   ////////////////////////////////////////SPATIAL JOIN//////////////////////////////////////////////////
 
 
-  def getSelectLongestLineIntersectsArea(){
-        var spatialDf = sparkSession.sql(
-           """
-             |SELECT count(*)
-             |FROM areawater_merge a, edges_merge e
-             |WHERE ST_Intersects(e.shape, a.shape) and e.se_row_id = 
-             |(SELECT first 1 se_row_id from edges_merge em order by ST_Length(shape) desc)
-           """.stripMargin)
-         spatialDf.createOrReplaceTempView("spatialdf")
-         spatialDf.show()
-    
-    }
 
   ////////////////////////////////////////ALLPAIR SPATIAL JOIN//////////////////////////////////////////////////
 
@@ -230,8 +175,8 @@ object GeoSparkBench extends App{
     def getSelectAreaOverlapsArea() {
         var spatialDf = sparkSession.sql(
            """
-             |SELECT count(*) 
-             |FROM  arealm_merge a1 , arealm_merge a2 
+             |SELECT count(*)
+             |FROM  arealm_merge a1 , arealm_merge a2
              |WHERE ST_Intersects(a1.shape, a2.shape) AND !(ST_Contains(a1.shape, a2.shape)) AND !(ST_Contains(a2.shape, a1.shape))
            """.stripMargin)
          spatialDf.createOrReplaceTempView("spatialdf")
@@ -262,18 +207,7 @@ object GeoSparkBench extends App{
       spatialDf.show()
 
     }
-    
-    def getSelectAreaEqualsArea() {
-        var spatialDf = sparkSession.sql(
-            """
-             |SELECT count(*) 
-             |FROM arealm_merge a1 , arealm_merge a2
-             |WHERE ST_Within(a1.shape, a2.shape) AND ST_Within(a2.shape, a1.shape)
-           """.stripMargin)
-         spatialDf.createOrReplaceTempView("spatialdf")
-         spatialDf.show()
 
-    }
     
     def getSelectAreaDisjointArea() {
         var spatialDf = sparkSession.sql(
@@ -329,12 +263,12 @@ object GeoSparkBench extends App{
   ///////////////////////////////////////LINE AND LINE//////////////////////////////////////////////
 
 
-  def getSelectLineOverlapsLine() {
+  def getSelectLineIntersectsLine() {
         var spatialDf = sparkSession.sql(
            """
              |SELECT *
              |FROM  edges_merge e1 , edges_merge e2 
-             |WHERE ST_Intersects(e1.shape, e2.shape) AND !(ST_Contains(e1.shape, e2.shape)) AND !(ST_Contains(e2.shape, e1.shape))
+             |WHERE ST_Intersects(e1.shape, e2.shape)
              |LIMIT 5
            """.stripMargin)
          spatialDf.createOrReplaceTempView("spatialdf")
