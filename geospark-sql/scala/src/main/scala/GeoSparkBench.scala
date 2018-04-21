@@ -43,6 +43,7 @@ object GeoSparkBench extends App{
         var arealm_merge = sparkSession.sql("""
                                        | SELECT ST_GeomFromWKT(rddshape) as shape
                                        | FROM rawSpatialDf
+                                       | LIMIT 2000
                                      """.stripMargin)
         arealm_merge.createOrReplaceTempView("arealm_merge")
         arealm_merge.show()
@@ -56,6 +57,7 @@ object GeoSparkBench extends App{
         var pointlm_merge = sparkSession.sql("""
                                        | SELECT ST_GeomFromWKT(rddshape) as shape
                                        | FROM rawSpatialDf1
+                                       | LIMIT 2000
                                      """.stripMargin)
         pointlm_merge.createOrReplaceTempView("pointlm_merge")
         pointlm_merge.show()
@@ -69,6 +71,7 @@ object GeoSparkBench extends App{
         var edges_merge = sparkSession.sql("""
                                        | SELECT ST_GeomFromWKT(rddshape) as shape
                                        | FROM rawSpatialDf2
+                                       | LIMIT 2000
                                      """.stripMargin)
         edges_merge.createOrReplaceTempView("edges_merge")
         edges_merge.show()
@@ -82,6 +85,7 @@ object GeoSparkBench extends App{
         var areawater_merge = sparkSession.sql("""
                                        | SELECT ST_GeomFromWKT(rddshape) as shape
                                        | FROM rawSpatialDf3
+                                       | LIMIT 2000
                                      """.stripMargin)
         areawater_merge.createOrReplaceTempView("areawater_merge")
         areawater_merge.show()
@@ -104,7 +108,7 @@ object GeoSparkBench extends App{
     getSelectLongestLineIntersectsArea()
     runtime = System.currentTimeMillis() - beginTime
     println("Select Longest Line Intersects Area took : " + runtime +" (ms)")
-    */
+  */
 
 
     beginTime = System.currentTimeMillis()
@@ -209,9 +213,10 @@ object GeoSparkBench extends App{
   def getSelectLongestLineIntersectsArea(){
         var spatialDf = sparkSession.sql(
            """
-             |SELECT count(*) FROM areawater_merge a, edges_merge e
+             |SELECT count(*)
+             |FROM areawater_merge a, edges_merge e
              |WHERE ST_Intersects(e.shape, a.shape) and e.se_row_id = 
-             |(SELECT first 1 se_row_id from edges_merge order by ST_Length(shape) desc) 
+             |(SELECT first 1 se_row_id from edges_merge em order by ST_Length(shape) desc)
            """.stripMargin)
          spatialDf.createOrReplaceTempView("spatialdf")
          spatialDf.show()
@@ -327,9 +332,10 @@ object GeoSparkBench extends App{
   def getSelectLineOverlapsLine() {
         var spatialDf = sparkSession.sql(
            """
-             |SELECT first 5  e1.se_row_id 
+             |SELECT *
              |FROM  edges_merge e1 , edges_merge e2 
-             |WHERE ST_Intersects(e.shape, a.shape) AND !(ST_Contains(e.shape, a.shape)) AND !(ST_Contains(a.shape, e.shape))
+             |WHERE ST_Intersects(e1.shape, e2.shape) AND !(ST_Contains(e1.shape, e2.shape)) AND !(ST_Contains(e2.shape, e1.shape))
+             |LIMIT 5
            """.stripMargin)
          spatialDf.createOrReplaceTempView("spatialdf")
          spatialDf.show()
