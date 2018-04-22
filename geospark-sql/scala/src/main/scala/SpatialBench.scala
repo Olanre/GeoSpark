@@ -5,7 +5,16 @@ import com.vividsolutions.jts.io.WKTReader
 import org.apache.spark.{SparkConf, SparkContext}
 import spatialspark.join.{BroadcastSpatialJoin, PartitionedSpatialJoin}
 import spatialspark.operator.SpatialOperator
+import spatialspark.partition._
+import spatialspark.partition.bsp.BinarySplitPartitionConf
+import spatialspark.partition.fgp.FixedGridPartitionConf
+import spatialspark.partition.stp.SortTilePartitionConf
 import spatialspark.query.RangeQuery
+import spatialspark.util.MBR
+import org.apache.spark.rdd.RDD
+
+
+import scala.util.Try
 
 object SpatialBench extends App {
   val showProgress = "true" // show Spark's progress bar (makes log file look ugly)
@@ -43,13 +52,14 @@ object SpatialBench extends App {
   val reorderLocation = "/data/taxi/SpatialSparkReordered.out"
 
   val pointlm_mergePath  = "/root/bigdata/pointlm_merge.csv"
-  val	edgespath="/root/bigdata/edges_merge.csv"
-  val arealmpath="/root/bigdata/arealm_merge.csv"
-  val areawaterpath="/root/bigdata/areawater_merge.csv"
+  val	edges_mergePath="/root/bigdata/edges_merge.csv"
+  val arealm_mergePath="/root/bigdata/arealm_merge.csv"
 
   val conf = new SparkConf().setAppName("Spatial Join App")
   conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
   conf.set("spark.kryo.registrator", "spatialspark.util.KyroRegistrator")
+  conf.set("spark.kryoserializer.buffer.max.mb", "512")
+
   val sc = new SparkContext(conf)
 
 
@@ -57,13 +67,27 @@ object SpatialBench extends App {
     .map(_.split("\n"))
     .map { arr => (new WKTReader().read(arr(0))) }
     .zipWithIndex().map(_.swap)
-  val pointlm_merge = pRDD(sc,pointlm_mergePath)
-  val arealm_merge = pRDD(sc,arealmpath)
-  val edges_merge = pRDD(sc,edgespath)
-  val areawater_merge = pRDD(sc,areawaterpath)
+
+  //load left dataset
+  val pointlm_merge = sc.textFile(pointlm_mergePath).map(x => x.split("COMMA")).zipWithIndex()
+  val pointlm_mergeById = pointlm_merge.map(x => (x._2, Try(new WKTReader().read(x._1.apply(0)))))
+    .filter(_._2.isSuccess).map(x => (x._1, x._2.get))
+
+
+  val arealm_merge = sc.textFile(arealm_mergePath).map(x => x.split("COMMA")).zipWithIndex()
+  val arealm_mergeById = arealm_merge.map(x => (x._2, Try(new WKTReader().read(x._1.apply(0)))))
+    .filter(_._2.isSuccess).map(x => (x._1, x._2.get))
+
+
+
+  val edges_merge = sc.textFile(edges_mergePath).map(x => x.split("COMMA")).zipWithIndex()
+  val edges_mergeById = edges_merge.map(x => (x._2, Try(new WKTReader().read(x._1.apply(0)))))
+    .filter(_._2.isSuccess).map(x => (x._1, x._2.get))
 
   var beginTime = System.currentTimeMillis()
   var runtime = System.currentTimeMillis() - beginTime
+
+
 
     try {
 
@@ -78,25 +102,25 @@ object SpatialBench extends App {
       beginTime = System.currentTimeMillis()
       getSelectAreaContainsArea()
       runtime = System.currentTimeMillis() - beginTime
-      println("Select Area Overlaps Area took : " + runtime +" (ms)")
+      println("Select Area Contains Area took : " + runtime +" (ms)")
 
       beginTime = System.currentTimeMillis()
       getSelectAreaWithinArea()
       runtime = System.currentTimeMillis() - beginTime
-      println("Select Area Equals Area took : " + runtime +" (ms)")
+      println("Select Area Within Area took : " + runtime +" (ms)")
 
 
       /////////////////////////////////////////LINE AND POLYGON //////////////////////////////////////////////
       beginTime = System.currentTimeMillis()
       getSelectLineIntersectsArea()
       runtime = System.currentTimeMillis() - beginTime
-      println("Select Line IntersectsArea took : " + runtime +" (ms)")
+      println("Select Line Intersects Area took : " + runtime +" (ms)")
 
 
       beginTime = System.currentTimeMillis()
       getSelectLineWithinArea()
       runtime = System.currentTimeMillis() - beginTime
-      println("Select Area Within Area took : " + runtime +" (ms)")
+      println("Select Line Within Area took : " + runtime +" (ms)")
 
 
       beginTime = System.currentTimeMillis()
@@ -141,70 +165,111 @@ object SpatialBench extends App {
         e.printStackTrace(System.err)
     }
 
+  def getPartConf(leftGeometryById: RDD[(Long, Geometry)],
+                  rightGeometryById: RDD[(Long, Geometry)]): PartitionConf ={
 
+    var paralllelPartition = true
+    var numPartitions = 512
+    var method = "stp"
+    var methodConf = "32:32:0.1"
+    var extentString = ""
+    var extent = extentString match {
+      case "" =>
+        val temp = leftGeometryById.map(x => x._2.getEnvelopeInternal)
+          .map(x => (x.getMinX, x.getMinY, x.getMaxX, x.getMaxY))
+          .reduce((a, b) => (a._1 min b._1, a._2 min b._2, a._3 max b._3, a._4 max b._4))
+        val temp2 = rightGeometryById.map(x => x._2.getEnvelopeInternal)
+          .map(x => (x.getMinX, x.getMinY, x.getMaxX, x.getMaxY))
+          .reduce((a, b) => (a._1 min b._1, a._2 min b._2, a._3 max b._3, a._4 max b._4))
+        (temp._1 min temp2._1, temp._2 min temp2._2, temp._3 max temp2._3, temp._4 max temp2._4)
+      case _ => (extentString.split(":").apply(0).toDouble, extentString.split(":").apply(1).toDouble,
+        extentString.split(":").apply(2).toDouble, extentString.split(":").apply(3).toDouble)
+    }
+
+    var partConf = method match {
+      case "stp" =>
+        val dimX = methodConf.split(":").apply(0).toInt
+        val dimY = methodConf.split(":").apply(1).toInt
+        val ratio = methodConf.split(":").apply(2).toDouble
+        new SortTilePartitionConf(dimX, dimY, new MBR(extent._1, extent._2, extent._3, extent._4), ratio, paralllelPartition)
+      case "bsp" =>
+        val level = methodConf.split(":").apply(0).toLong
+        val ratio = methodConf.split(":").apply(1).toDouble
+        new BinarySplitPartitionConf(ratio, new MBR(extent._1, extent._2, extent._3, extent._4), level, paralllelPartition)
+      case _ =>
+        val dimX = methodConf.split(":").apply(0).toInt
+        val dimY = methodConf.split(":").apply(1).toInt
+        new FixedGridPartitionConf(dimX, dimY, new MBR(extent._1, extent._2, extent._3, extent._4))
+    }
+    return partConf
+  }
 
 
   def getSelectAreaOverlapsArea() {
 
-    BroadcastSpatialJoin(sc, arealm_merge, arealm_merge, SpatialOperator.Overlaps)
+    BroadcastSpatialJoin(sc, arealm_mergeById, arealm_mergeById, SpatialOperator.Overlaps)
 
   }
 
   def getSelectAreaContainsArea() {
 
 
-    BroadcastSpatialJoin(sc, arealm_merge, arealm_merge, SpatialOperator.Contains)
+    BroadcastSpatialJoin(sc, arealm_mergeById, arealm_mergeById, SpatialOperator.Contains)
   }
 
   def getSelectAreaWithinArea() {
 
 
-    BroadcastSpatialJoin(sc, arealm_merge, arealm_merge, SpatialOperator.Within)
-
+    BroadcastSpatialJoin(sc, arealm_mergeById, arealm_mergeById, SpatialOperator.Within)
 
   }
 
 
   def getSelectLineIntersectsArea() {
 
-    BroadcastSpatialJoin(sc, arealm_merge, edges_merge, SpatialOperator.Intersects)
-
+    var partConf = getPartConf( edges_mergeById, arealm_mergeById)
+    BroadcastSpatialJoin(sc, edges_mergeById, arealm_mergeById, SpatialOperator.Intersects)
+    //PartitionedSpatialJoin(sc, edges_mergeById, arealm_mergeById, SpatialOperator.Intersects, 0.0, partConf)
 
   }
 
   def getSelectLineWithinArea() {
-
-    BroadcastSpatialJoin(sc, arealm_merge, edges_merge, SpatialOperator.Within)
-
+    var partConf = getPartConf( edges_mergeById, arealm_mergeById)
+     BroadcastSpatialJoin(sc, edges_mergeById, arealm_mergeById, SpatialOperator.Within )
+    //PartitionedSpatialJoin(sc, edges_mergeById, arealm_mergeById, SpatialOperator.Within , 0.0, partConf)
 
   }
 
   def getSelectLineOverlapsArea() {
-
-    BroadcastSpatialJoin(sc, arealm_merge, edges_merge, SpatialOperator.Overlaps)
+    var partConf = getPartConf( edges_mergeById ,arealm_mergeById)
+    BroadcastSpatialJoin(sc,  edges_mergeById, arealm_mergeById, SpatialOperator.Overlaps )
+   // PartitionedSpatialJoin(sc,  edges_mergeById, arealm_mergeById, SpatialOperator.Overlaps , 0.0, partConf)
 
   }
 
   def getSelectLineIntersectsLine() {
-    BroadcastSpatialJoin(sc, edges_merge, edges_merge, SpatialOperator.Intersects)
+    var partConf = getPartConf(edges_mergeById, edges_mergeById)
+    //BroadcastSpatialJoin(sc, edges_mergeById, edges_mergeById, SpatialOperator.Intersects)
+    PartitionedSpatialJoin(sc, edges_mergeById, edges_mergeById, SpatialOperator.Intersects, 0.0, partConf)
 
   }
 
   def getSelectPointWithinArea() {
 
-    BroadcastSpatialJoin(sc, pointlm_merge, arealm_merge, SpatialOperator.Within)
+    BroadcastSpatialJoin(sc, pointlm_mergeById, arealm_mergeById, SpatialOperator.Within)
 
   }
 
   def getSelectPointIntersectsArea() {
 
-    BroadcastSpatialJoin(sc, pointlm_merge, arealm_merge, SpatialOperator.Intersects)
+    BroadcastSpatialJoin(sc, pointlm_mergeById, arealm_mergeById, SpatialOperator.Intersects)
 
   }
 
   def getSelectPointIntersectsLine() {
-
-    BroadcastSpatialJoin(sc, pointlm_merge, edges_merge, SpatialOperator.Intersects)
+    var partConf = getPartConf(pointlm_mergeById, edges_mergeById)
+    BroadcastSpatialJoin(sc, pointlm_mergeById, edges_mergeById, SpatialOperator.Intersects)
+    //PartitionedSpatialJoin(sc, pointlm_mergeById, edges_mergeById, SpatialOperator.Intersects , 0.0, partConf)
 
 
   }

@@ -47,21 +47,21 @@ object MagellanBench extends App{
   var pointlm_merge = sqlContext.read.format("magellan").
     option("magellan.index", "true").
     load(pointlmpath).
-    select($"point").
+    select($"*").
     cache()
 
   var edgespath = "/root/bigdata/edges"
   var edges_merge = sqlContext.read.format("magellan").
     option("magellan.index", "true").
     load(edgespath).
-    select($"polyline").
+    select($"*").
     cache()
 
   var arealmpath = "/root/bigdata/arealm"
   var arealm_merge = sqlContext.read.format("magellan").
     option("magellan.index", "true").
     load(arealmpath).
-    select($"polygon").
+    select($"*").
     cache()
 
 
@@ -206,7 +206,7 @@ object MagellanBench extends App{
     //sb.append("select count(*) from  arealm_merge a, edges_merge e where Intersects(a.shape, e.shape)");
     val line1 = j1.join(em1)
       .select($"s1",$"e1" )
-      .where(!($"s1" intersects $"e1"))
+      .where(!($"e1" intersects $"s1"))
     //line1.count();
   }
 
@@ -215,7 +215,7 @@ object MagellanBench extends App{
     //sb.append("select count(*) from  arealm_merge a, edges_merge e where within(a.shape, e.shape)");
     val line2 = j1.join(em1)
       .select($"s1",$"e1"  )
-      .where(!($"s1" within $"e1"))
+      .where(!($"e1" within $"s1"))
     //line2.count();
   }
 
