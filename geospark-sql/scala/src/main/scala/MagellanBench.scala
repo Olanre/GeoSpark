@@ -48,7 +48,6 @@ object MagellanBench extends App{
     option("magellan.index", "true").
     load(pointlmpath).
     select($"point").
-    limit(2000).
     cache()
 
   var edgespath = "/root/bigdata/edges"
@@ -56,7 +55,6 @@ object MagellanBench extends App{
     option("magellan.index", "true").
     load(edgespath).
     select($"polyline").
-    limit(2000).
     cache()
 
   var arealmpath = "/root/bigdata/arealm"

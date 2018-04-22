@@ -43,7 +43,8 @@ libraryDependencies ++= Seq(
 
 // https://mvnrepository.com/artifact/harsha2010/magellan
 libraryDependencies += "harsha2010" % "magellan" % "1.0.5-s_2.11"
-
+// https://mvnrepository.com/artifact/me.simin/spatial-spark
+libraryDependencies += "me.simin" %% "spatial-spark" % "1.1.1"
 //unmanagedJars in Compile += file("lib/magellan.jar")
 
 
@@ -62,3 +63,5 @@ resolvers +=
 resolvers += "Open Source Geospatial Foundation Repository" at "http://download.osgeo.org/webdav/geotools"
 
 resolvers += "Maven repository" at "https://dl.bintray.com/spark-packages/maven/"
+
+resolvers += "Maven 2 Repo" at "http://central.maven.org/maven2/"
