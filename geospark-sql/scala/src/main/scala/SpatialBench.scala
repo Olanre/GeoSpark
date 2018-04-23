@@ -207,19 +207,20 @@ object SpatialBench extends App {
 
   def getSelectAreaOverlapsArea() {
 
+    var partConf = getPartConf( arealm_mergeById,  arealm_mergeById)
     BroadcastSpatialJoin(sc, arealm_mergeById, arealm_mergeById, SpatialOperator.Overlaps)
 
   }
 
   def getSelectAreaContainsArea() {
 
-
+    var partConf = getPartConf( arealm_mergeById, arealm_mergeById)
     BroadcastSpatialJoin(sc, arealm_mergeById, arealm_mergeById, SpatialOperator.Contains)
   }
 
   def getSelectAreaWithinArea() {
 
-
+    var partConf = getPartConf( arealm_mergeById, arealm_mergeById)
     BroadcastSpatialJoin(sc, arealm_mergeById, arealm_mergeById, SpatialOperator.Within)
 
   }
@@ -255,21 +256,21 @@ object SpatialBench extends App {
   }
 
   def getSelectPointWithinArea() {
-
+    var partConf = getPartConf(pointlm_mergeById, arealm_mergeById)
     BroadcastSpatialJoin(sc, pointlm_mergeById, arealm_mergeById, SpatialOperator.Within)
 
   }
 
   def getSelectPointIntersectsArea() {
-
+    var partConf = getPartConf(pointlm_mergeById, arealm_mergeById)
     BroadcastSpatialJoin(sc, pointlm_mergeById, arealm_mergeById, SpatialOperator.Intersects)
 
   }
 
   def getSelectPointIntersectsLine() {
     var partConf = getPartConf(pointlm_mergeById, edges_mergeById)
-    BroadcastSpatialJoin(sc, pointlm_mergeById, edges_mergeById, SpatialOperator.Intersects)
-    //PartitionedSpatialJoin(sc, pointlm_mergeById, edges_mergeById, SpatialOperator.Intersects , 0.0, partConf)
+    //BroadcastSpatialJoin(sc, pointlm_mergeById, edges_mergeById, SpatialOperator.Intersects)
+    PartitionedSpatialJoin(sc, pointlm_mergeById, edges_mergeById, SpatialOperator.Intersects , 0.0, partConf)
 
 
   }

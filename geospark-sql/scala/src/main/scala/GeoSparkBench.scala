@@ -57,7 +57,6 @@ object GeoSparkBench extends App{
         var pointlm_merge = sparkSession.sql("""
                                        | SELECT ST_GeomFromWKT(rddshape) as shape
                                        | FROM rawSpatialDf1
-                                       | LIMIT 2000
                                      """.stripMargin)
         pointlm_merge.createOrReplaceTempView("pointlm_merge")
         pointlm_merge.show()
@@ -71,7 +70,6 @@ object GeoSparkBench extends App{
         var edges_merge = sparkSession.sql("""
                                        | SELECT ST_GeomFromWKT(rddshape) as shape
                                        | FROM rawSpatialDf2
-                                       | LIMIT 2000
                                      """.stripMargin)
         edges_merge.createOrReplaceTempView("edges_merge")
         edges_merge.show()
@@ -101,10 +99,6 @@ object GeoSparkBench extends App{
     runtime = System.currentTimeMillis() - beginTime
     println("Select Area Within Area took : " + runtime +" (ms)")
 
-    beginTime = System.currentTimeMillis()
-    getSelectAreaDisjointArea()
-    runtime = System.currentTimeMillis() - beginTime
-    println("Select Area Disjoint Area took : " + runtime +" (ms)")
 
       /////////////////////////////////////////LINE AND POLYGON //////////////////////////////////////////////
     beginTime = System.currentTimeMillis()
@@ -150,10 +144,6 @@ object GeoSparkBench extends App{
     println("Select Point Intersects Line took : " + runtime +" (ms)")
 
 
-    beginTime = System.currentTimeMillis()
-    getSelectPointEqualsPoint()
-    runtime = System.currentTimeMillis() - beginTime
-    println("Select Point Equals Point took : " + runtime +" (ms)")
 
     sparkSession.stop()
     System.out.println("All GeoSpark Benchmarks completed and passed!")
@@ -180,7 +170,7 @@ object GeoSparkBench extends App{
              |WHERE ST_Intersects(a1.shape, a2.shape) AND !(ST_Contains(a1.shape, a2.shape)) AND !(ST_Contains(a2.shape, a1.shape))
            """.stripMargin)
          spatialDf.createOrReplaceTempView("spatialdf")
-         spatialDf.show()
+         //spatialDf.show()
 
     }
     
@@ -192,7 +182,7 @@ object GeoSparkBench extends App{
              |WHERE ST_Contains(a1.shape, a2.shape)
            """.stripMargin)
          spatialDf.createOrReplaceTempView("spatialdf")
-         spatialDf.show()
+         //spatialDf.show()
 
     }
 
@@ -204,7 +194,7 @@ object GeoSparkBench extends App{
           |WHERE ST_Within(a1.shape, a2.shape)
         """.stripMargin)
       spatialDf.createOrReplaceTempView("spatialdf")
-      spatialDf.show()
+      //spatialDf.show()
 
     }
 
@@ -217,7 +207,7 @@ object GeoSparkBench extends App{
              |WHERE !(ST_Intersects(a1.shape, a2.shape))
            """.stripMargin)
          spatialDf.createOrReplaceTempView("spatialdf")
-         spatialDf.show()
+         //spatialDf.show()
 
     }
 
@@ -232,7 +222,7 @@ object GeoSparkBench extends App{
              |WHERE ST_Intersects(e.shape, a.shape)
            """.stripMargin)
          spatialDf.createOrReplaceTempView("spatialdf")
-         spatialDf.show()
+         //spatialDf.show()
 
     }
     
@@ -244,7 +234,7 @@ object GeoSparkBench extends App{
              |WHERE ST_Within(e.shape, a.shape)
            """.stripMargin)
          spatialDf.createOrReplaceTempView("spatialdf")
-         spatialDf.show()
+         //spatialDf.show()
 
     }
     
@@ -256,7 +246,7 @@ object GeoSparkBench extends App{
              |WHERE ST_Intersects(e.shape, a.shape) AND !(ST_Contains(e.shape, a.shape)) AND !(ST_Contains(a.shape, e.shape))
            """.stripMargin)
          spatialDf.createOrReplaceTempView("spatialdf")
-         spatialDf.show()
+         //spatialDf.show()
 
     }
 
@@ -272,7 +262,7 @@ object GeoSparkBench extends App{
              |LIMIT 5
            """.stripMargin)
          spatialDf.createOrReplaceTempView("spatialdf")
-         spatialDf.show()
+         //spatialDf.show()
 
     }
 
@@ -287,7 +277,7 @@ object GeoSparkBench extends App{
         |WHERE ST_Within(p.shape, a.shape)
       """.stripMargin)
     spatialDf.createOrReplaceTempView("spatialdf")
-    spatialDf.show()
+    //spatialDf.show()
 
   }
 
@@ -299,7 +289,7 @@ object GeoSparkBench extends App{
              |WHERE ST_Intersects(p.shape, a.shape)
            """.stripMargin)
       spatialDf.createOrReplaceTempView("spatialdf")
-      spatialDf.show()
+      //spatialDf.show()
 
     }
     
@@ -311,7 +301,7 @@ object GeoSparkBench extends App{
              |WHERE ST_Intersects(p.shape, e.shape)
            """.stripMargin)
          spatialDf.createOrReplaceTempView("spatialdf")
-         spatialDf.show()
+         //spatialDf.show()
 
     }
 
@@ -324,7 +314,7 @@ object GeoSparkBench extends App{
              |WHERE ST_Within(p1.shape, p2.shape) AND ST_Within(p2.shape, p1.shape)
            """.stripMargin)
          spatialDf.createOrReplaceTempView("spatialdf")
-         spatialDf.show()
+         //spatialDf.show()
 
     }
 }

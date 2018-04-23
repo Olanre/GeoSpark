@@ -152,10 +152,10 @@ object MagellanBench extends App{
   runtime = System.currentTimeMillis() - beginTime
   println("Select Point Intersects Line took : " + runtime + " (ms)")
 
-  beginTime = System.currentTimeMillis()
-  getSelectPointEqualsPoint()
-  runtime = System.currentTimeMillis() - beginTime
-  println("Select Point Equals Point took : " + runtime + " (ms)")
+  //beginTime = System.currentTimeMillis()
+  //getSelectPointEqualsPoint()
+  //runtime = System.currentTimeMillis() - beginTime
+  //println("Select Point Equals Point took : " + runtime + " (ms)")
 
   sc.stop()
   System.out.println("All GeoSpark Benchmarks completed and passed!")
@@ -166,26 +166,20 @@ object MagellanBench extends App{
 
   def getSelectAreaWithinArea() {
 
-    val joined2 = j1.join(j2)
-      .select($"*")
-      .where($"s1" within $"s2")
+    val joined2 = j1.join(j2).where($"s1" within $"s2")
 
   }
 
   def getSelectAreaOverlapsArea() {
     //select count(*) from  arealm_merge a1 , arealm_merge a2 where ST_Intersects(a1.shape, a2.shape) AND assert_true(ST_contains(a1.shape, a2.shape))AND assert_true(ST_contains(a2.shape, a1.shape))
-    val joined1 = j1.join(j2)
-      .select($"*")
-      .where($"s1" intersects $"s2" and !($"s1" >? $"s2") and !($"s2" >? $"s1"))
-    //joined1.count()
+    val joined1 = j1.join(j2).where($"s1" intersects $"s2" and !($"s1" >? $"s2") and !($"s2" >? $"s1"))
+    //joined1.show()
   }
 
 
   def getSelectAreaContainsArea() {
     //select count(*) from  arealm_merge a1 , arealm_merge a2 where ST_contains(a1.shape, a2.shape)
-    val joined2 = j1.join(j2)
-      .select($"*")
-      .where($"s1" >? $"s2")
+    val joined2 = j1.join(j2).where($"s1" >? $"s2")
     //joined2.count()
   }
 
@@ -193,9 +187,7 @@ object MagellanBench extends App{
   def getSelectAreaDisjointArea() {
     //sb.append("select count(*) from  arealm_merge a1, arealm_merge a2 where assert_true(ST_Intersects(a1.shape, a2.shape))");
 
-    val joined4 = j1.join(j2)
-      .select($"*")
-      .where(!($"s1" intersects $"s2"))
+    val joined4 = j1.join(j2).where(!($"s1" intersects $"s2"))
     //joined4.count()
   }
 
@@ -204,26 +196,20 @@ object MagellanBench extends App{
 
   def getSelectLineIntersectsArea() {
     //sb.append("select count(*) from  arealm_merge a, edges_merge e where Intersects(a.shape, e.shape)");
-    val line1 = j1.join(em1)
-      .select($"s1",$"e1" )
-      .where(!($"e1" intersects $"s1"))
+    val line1 = j1.join(em1).where(!($"e1" intersects $"s1"))
     //line1.count();
   }
 
   def getSelectLineWithinArea() {
 
     //sb.append("select count(*) from  arealm_merge a, edges_merge e where within(a.shape, e.shape)");
-    val line2 = j1.join(em1)
-      .select($"s1",$"e1"  )
-      .where(!($"e1" within $"s1"))
+    val line2 = j1.join(em1).where(!($"e1" within $"s1"))
     //line2.count();
   }
 
   def getSelectLineOverlapsArea() {
     //sb.append("select  count(*) from  arealm_merge a, edges_merge e where ST_Intersects(e.shape, a.shape) AND assert_true(ST_contains(e.shape, a.shape))AND assert_true(ST_contains(a.shape, e.shape))");
-    val line3 = j1.join(em1)
-      .select($"s1",$"e1" )
-      .where(!($"e1" intersects $"s1") and !($"e1" >? $"s1") and !($"s1" >? $"e1"))
+    val line3 = j1.join(em1).where(!($"e1" intersects $"s1") and !($"e1" >? $"s1") and !($"s1" >? $"e1"))
     //line3.count();
   }
 
@@ -233,9 +219,7 @@ object MagellanBench extends App{
     //sb.append("select first 5  e1.se_row_id from  edges_merge e1 , edges_merge e2 where ST_Intersects(e1.shape, e2.shape) AND assert_true(ST_contains(e1.shape, e2.shape))AND assert_true(ST_contains(e2.shape, e1.shape))  ");
 
 
-    val line4 = em1.join(em2)
-      .select($"e1", $"e2")
-      .where(($"e1" intersects $"e2"))
+    val line4 = em1.join(em2).where(($"e1" intersects $"e2"))
     //line4.show(5);
   }
 
@@ -245,34 +229,26 @@ object MagellanBench extends App{
   def getSelectPointWithinArea() {
     //sb.append("select count(*)  from  arealm_merge a, pointlm_merge p where ST_Within(p.shape, a.shape)");
 
-    val point1 = p1.join(j1)
-      .select($"s1",$"p1" )
-      .where($"p1" within $"s1")
+    val point1 = p1.join(j1).where($"p1" within $"s1")
     //point1.count()
   }
 
   def getSelectPointIntersectsArea() {
     //sb.append("select count(*)  from  arealm_merge a, pointlm_merge p where ST_Intersects(p.shape, a.shape)");
-    val point2 = p1.join(j1)
-      .select($"s1",$"p1")
-      .where($"p1" intersects $"s1")
+    val point2 = p1.join(j1).where($"p1" intersects $"s1")
     //point2.count()
   }
 
   def getSelectPointIntersectsLine() {
     //sb.append("select count(*)  from  edges_merge e, pointlm_merge p where ST_Intersects(p.shape, e.shape)");
-    val point3 = p1.join(em1)
-      .select($"e1",$"p1")
-      .where($"p1" intersects $"e1")
+    val point3 = p1.join(em1).where($"p1" intersects $"e1")
     //point3.count()
   }
 
   def getSelectPointEqualsPoint(){
 
     //sb.append("select count(*) from  pointlm_merge p1, pointlm_merge p2 where ST_within(p1.shape, p2.shape) AND ST_within(p2.shape, p1.shape)");
-    val point4 = p1.join(p2)
-      .select($"p1",$"p2")
-      .where(($"p1" >? $"p2") and ($"p2" >? $"p1"))
+    val point4 = p1.join(p2).where(($"p1" >? $"p2") and ($"p2" >? $"p1"))
     //point4.count()
   }
 
